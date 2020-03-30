@@ -1,0 +1,434 @@
+---
+title: "Tutorial_Mammalogy"
+output: html_document
+authors: Nelie Heitzman, Leila Hashemi, Alicia Kim 
+---
+INTRODUCTION:
+
+For this R tutorial, we will be using the data from https://link.springer.com/content/pdf/10.1007/s00360-017-1109-2.pdf. This paper is called "Energy-conserving thermoregulatory patterns and lower disease severity in a bat resistant to the impacts of white-nose syndrome" and it explores the different factors of bats (Eptesicus fuscus and Myotis lucifugus) in their resistance to white-nose syndrome. E. fuscus is indicated as the big bats, and M. lucifugus being the small bats. 
+
+The purpose of replicating this data was to determine if the data in the paper is replicable and to see if we can use our R coding skills to replicate it.
+
+
+First, we install packages and call them from R's library.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if (!require("readxl")) install.packages("readxl"); library(readxl)
+if (!require("UsingR")) install.packages("UsingR"); library(UsingR)
+if (!require("cowplot")) install.packages("cowplot"); library(cowplot)
+if (!require("tidyverse")) install.packages("tidyverse"); library(tidyverse)
+if (!require("car")) install.packages("car"); library(car)
+if (!require("ggplot2")) install.packages("ggplot2"); library(ggplot2)
+if (!require("plyr")) install.packages("plyr"); library(plyr)
+if (!require("coin")) install.packages("coin"); library(coin)
+```
+
+Then, we import the data "bats.csv" and rename to bats.  
+```{r}
+bats <- read_csv("Bats.csv", locale = locale(encoding = "latin1"))
+head(bats)
+```
+
+The command "summary" will allow us to visualize the dataset.
+```{r}
+summary(bats)
+```
+
+We see that some of the data is categorical and of the class "character."
+To analyze the data, we reformat to a readable output using the command "as.factor" 
+(example: species=Eptesicus fuscus instead of "character")
+```{r Factoring data 1}
+bats$Sex <- as.factor(bats$Sex)
+table(bats$Sex)
+
+bats$Age <- as.factor(bats$Age)
+table(bats$Age)
+
+bats$Species <- as.factor(bats$Species)
+table(bats$Species)
+
+bats$`Collection site`<- as.factor(bats$`Collection site`)
+table(bats$`Collection site`)
+
+bats$`Date of capture` <- as.factor(bats$`Date of capture`)
+table(bats$`Date of capture`)
+
+bats$`Mass at time of capture (g)` <- as.factor(bats$`Mass at time of capture (g)`)
+table(bats$`Mass at time of capture (g)`)
+
+bats$`Reproductive Stage` <- as.factor(bats$`Reproductive Stage`)
+table(bats$`Reproductive Stage`)
+
+bats$`Presense of Pd DNA at time of capture` <- as.factor(bats$`Presense of Pd DNA at time of capture`)
+table(bats$`Presense of Pd DNA at time of capture`)
+
+bats$`Treatment` <- as.factor(bats$`Treatment`)
+table(bats$`Treatment`)
+
+bats$`Chamber ID` <- as.factor(bats$`Chamber ID`)
+table(bats$`Chamber ID`)
+
+bats$`Pd lesions present at time of euthanasia?` <- as.factor(bats$`Pd lesions present at time of euthanasia?`)
+table(bats$`Pd lesions present at time of euthanasia?`)
+
+bats$`Presense of Pd DNA at time of euthanasia` <- as.factor(bats$`Presense of Pd DNA at time of euthanasia`)
+table(bats$`Presense of Pd DNA at time of euthanasia`)
+
+bats$`Unidentified fungus present at time of euthanasia?` <- as.factor(bats$`Unidentified fungus present at time of euthanasia?`)
+table(bats$`Unidentified fungus present at time of euthanasia?`)
+
+bats$`Inflammation present at time of euthanasia?` <- as.factor(bats$`Inflammation present at time of euthanasia?`)
+table(bats$`Inflammation present at time of euthanasia?`)
+```
+
+Figure 1A:
+
+To make the data easier to visualize for Figure 1A, we create a subset with only the columns "Species", "Week euthanized post-Pd exposure", and "Pd lesions present at time of euthanasia."
+```{r}
+bats.subset <- dplyr::select(bats, Species, `Week euthanized post-Pd exposure`, `Pd lesions present at time of euthanasia?`)
+```
+
+We then create another column called "lesions" using the "mutate" command. In this column, the samples with the Pd lesions present at the time of euthanasia are "TRUE" and those without the lesions are "FALSE". We are able to visualize this using the "summary" command.
+```{r}
+bats.1A <- mutate(bats.subset, lesions = `Pd lesions present at time of euthanasia?` == "yes")
+summary(bats.1A$lesions)
+```
+
+We noticed there is an NA in the data, so we have to remove it. We remove the NA because it might get in the way of future calculations. We then use the "count" command to make sure the NA is removed.
+```{r}
+filter.NA <- dplyr::filter(bats.1A, complete.cases(bats.1A))
+count(filter.NA$lesions)
+```
+
+We then create subsets using the "filter" command in order to separate the species by week euthanized post-Pd exposure. We end up with six datasets named for their species and week.
+```{r}
+M.luci3 <- dplyr::filter(filter.NA, Species == "Myotis lucifugus") %>% dplyr::filter(`Week euthanized post-Pd exposure` == "3")
+
+M.luci7 <- dplyr::filter(filter.NA, Species == "Myotis lucifugus") %>% dplyr::filter(`Week euthanized post-Pd exposure` == "7")
+
+M.luci13 <- dplyr::filter(filter.NA, Species == "Myotis lucifugus") %>% dplyr::filter(`Week euthanized post-Pd exposure` == "13")
+
+E.fusc3 <- dplyr::filter(filter.NA, Species == "Eptesicus fuscus") %>% dplyr::filter(`Week euthanized post-Pd exposure` == "3")
+
+E.fusc7 <- dplyr::filter(filter.NA, Species == "Eptesicus fuscus") %>% dplyr::filter(`Week euthanized post-Pd exposure` == "7")
+
+E.fusc13 <- dplyr::filter(filter.NA, Species == "Eptesicus fuscus") %>% dplyr::filter(`Week euthanized post-Pd exposure` == "13")
+```
+
+
+Next, we make a table with every week and species using the command "rbind," which binds the rows of all the datasets we just created.
+```{r}
+total <- rbind(M.luci3, M.luci7, M.luci13, E.fusc3, E.fusc7, E.fusc13)
+```
+
+We then use "ddply" command to calculate the frequencies of Pd lesions present at time of euthanasia by week and species. 
+We use the "ddply" command again to transform the frequencies we just found into relative frequencies. 
+```{r}
+M.count.total <- ddply(total, .(Species, `Pd lesions present at time of euthanasia?`), 'count')
+M_rel_freq.total <- ddply(total, .(Species), transform, rel_freq = lesions/sum(lesions))
+```  
+
+We use the "table" command to create a table of the species that had lesions, which were "TRUE," and species that didn't have the lesions, which were "FALSE." We also created this table in order to do further statistical anaylsis for the Fisher Test. This is a 3x3 table, which makes it appropiate to conduct a Fisher Test.
+```{r}
+table(filter.NA$Species, filter.NA$lesions)
+```
+
+We use the "fisher.test" to do a Fisher Test using the table from above. We did this because the authors in the paper used this statistical analysis. 
+```{r}
+fisher.test(table(filter.NA$Species, filter.NA$lesions))
+```
+The p-value is 0.02207, which is less than 0.05. This indicates that significantly more Pd-exposed Myotis lucifugus develop lesions than the Pd-exposed Eptesicus fuscus.
+
+We then used the "plot" and the "table" functions in order to develop a visualization of the relative frequencies of species that developed lesions by week post-Pd exposure. 
+```{r}
+plot(table(total$Species, total$`Week euthanized post-Pd exposure`, total$lesions))
+```
+
+
+Figure 1B:
+
+For Figure 1B, we use the command "dplyr::filter" to create a filtered database containing only total # of Pd lesions > 0 because the figure does show any 0 values of the total Pd lesions. We also renamed this subset to "bats.filter." We then use the "summary" command to visualize the bats.filter dataset. 
+```{r}
+bats.filter <- dplyr::filter(bats, `Total # of Pd lesions` > 0)
+summary(bats.filter)
+```
+
+We then ran a "simple.eda" to visualize the normality of the Q-Q plots for the total number of Pd lesisons for "bats.filter." We also conducted a shapiro test to test for its normality, and we did this for each of the species as well. 
+```{r Figure 1B}
+simple.eda(bats.filter$`Total # of Pd lesions`)
+shapiro.test(bats.filter$`Total # of Pd lesions`)
+shapiro.test(bats.filter$`Total # of Pd lesions`[bats.filter$Species=="Myotis lucifugus"])
+shapiro.test(bats.filter$`Total # of Pd lesions`[bats.filter$Species=="Eptesicus fuscus"])
+```
+The p-value is 0.0008465, which is less than 0.05. This means the dataset bats.filter for the total number of Pd lesions without separating the species is non-normally distributed. For Myotis lucifugus, the p-value is 0.00224, and for Eptesicus fuscus, the p-value is 0.00773, indicating that the total number of Pd lesions for both species is non-normally distributed. 
+
+We then performed a Levene's test to see if dataset bats.filter has equal variances for the total number of Pd lesions by species. 
+```{r}
+leveneTest(`Total # of Pd lesions` ~ Species, data = bats.filter)
+```
+The p-value is 0.6339, which is greater than 0.05. This indicates equal variances. 
+
+Next, we perform a Mann Whitney U test using the "wilcox.test" command because our dataset for the total number of Pd lesions is non-normal and has equal variances. This test tests for median distribution of the total number of Pd lesions by species in the dataset "bats.filter." The Mann Whitney U test is unpaired because there is only one variable (total number of Pd lesions) for each of the two species.
+
+```{r}
+wilcox.test(`Total # of Pd lesions` ~ Species, data = bats.filter)
+```
+
+The p-value is 0.3492, which is higher than 0.05. This indicates that the median total number of Pd lesions between species is not significantly different.
+
+We then performed a T-test because the authors of the paper used this statistical test.
+```{r}
+t.test(`Total # of Pd lesions` ~ Species, data = bats.filter)
+```
+The p-value is 0.4137, but the paper got a signficant p-value. This may have been due to the authors of the paper using different programs for data anaylsis such as SPSS. 
+
+Finally, using the "ggplot" command, we created a box plot showing the total number of Pd lesions per species in the "bats.filter" dataset. 
+```{r}
+ggplot(bats.filter) +
+  aes(Species, `Total # of Pd lesions`, group=Species, fill=Species) + 
+  geom_boxplot() +
+  theme_cowplot() +
+  theme(plot.title = element_text(size=14, face="bold.italic"))
+```
+
+
+Figure 2:
+
+First, we create a subset of "bats" dataset with variables Species, Mean torpor bout duration (days), and Treatment.We named this subset to "bats.subset2." We also used the "head" command to visualize the first six rows of the dataset "bats.subset2."
+```{r}
+bats.subset2 <- dplyr::select(bats, Species, `Mean torpor bout duration (days)`, `Treatment`)
+head(bats.subset2)
+```
+There are NA variables in the column "Mean torpor bout duration (days), and so we have to remove them. 
+
+Using command "dlypr::filter," we removed NAs from "bats.subset2" followed by command "complete.cases. We then rename dataset "filter.NA2."
+```{r}
+filter.NA2 <- dplyr::filter(bats.subset2, complete.cases(bats.subset2))
+```
+
+Using the "dplyr::mutate" command, we add a column to dataset "filter.NA2" named E.fuscus where all instances of Eptesicus fuscus equals "TRUE." "FALSE" represents the other species. We renamed this to "big.bats." We also use the "summary" command to count number of "TRUE" and "FALSE" entries. 
+```{r}
+big.bats <- dplyr::mutate(filter.NA2, E.fuscus = Species == "Eptesicus fuscus")
+summary(big.bats$E.fuscus)
+```
+
+Remove Species column from "big.bats" dataset to help with better visualize the data. We rename this to "big.subset."
+
+```{r}
+big.subset <- dplyr::select(big.bats, -c(Species))
+```
+
+We then used the "dyplr::filter" to create a subset based on the "big.subset," that only inclded the "TRUE" entries, and not the "FALSE." We did this to only create the future box plot for the E. fuscus. This allows us to only graph one species, so that the our analysis is species-specific. We rename this subset as "big.filter" and use the "summarize" command to count number of entries. 
+```{r}
+big.filter <- dplyr::filter(big.subset, E.fuscus == "TRUE")
+summary(big.filter$E.fuscus)
+```
+
+We used the steps above from the "big.bats" data for the Myotis lucifugus. 
+```{r}
+small.bats <- mutate(filter.NA2, M.lucifugus = Species == "Myotis lucifugus")
+summary(small.bats$M.lucifugus)
+```
+
+```{r}
+small.subset <- dplyr::select(small.bats, -c(Species))
+```
+
+
+```{r}
+small.filter <- dplyr::filter(small.subset, M.lucifugus == "TRUE")
+summary(small.filter$M.lucifugus)
+```
+
+We then ran a "simple.eda" to visualize the normality of the Q-Q plots for the Mean torpor bout duration (days) for both the "big.filter" and "small.filter" data. We also conducted a shapiro test to test for its normality for both of the datasets. 
+```{r Figure 2}
+simple.eda(big.filter$`Mean torpor bout duration (days)`)
+shapiro.test(big.filter$`Mean torpor bout duration (days)`)
+simple.eda(small.filter$`Mean torpor bout duration (days)`)
+shapiro.test(small.filter$`Mean torpor bout duration (days)`)
+```
+For "big.filter," the p-value is 0.01453 and so the mean torpor bout duration (days) is non-normally distributed for Eptesicus fuscus. For "small.filter," the p-value is 0.001203, and so the dataset is non-normally distributed for Myotis lucifugus.
+
+Now we perform a Levene test to determine if the "big.filter" and "small.filter" have equal variances. 
+```{r}
+leveneTest(`Mean torpor bout duration (days)` ~ Treatment, data = big.filter)
+leveneTest(`Mean torpor bout duration (days)` ~ Treatment, data = small.filter)
+```
+For Eptesicus fuscus, the p-value is 0.7925 so there are equal variances. For Myotis lucifugus, the p-value is 0.0380 so this data has un-equal variances.
+
+Next, we perform the a one-sided wilcox test using the "wilcox_test" command for "big.filter" and "small.filter." We do this test because it is appropiate for both equal and unequal variances. It also is appropiate for non-normal data.
+```{r}
+wilcox_test(`Mean torpor bout duration (days)` ~ Treatment, data = big.filter)
+wilcox_test(`Mean torpor bout duration (days)` ~ Treatment, data = small.filter)
+```
+The p-value for both species datasets are lower than 0.05, which indicates that there is a signficant change in torpor bout duration for both species. 
+
+We use false discovery rate (FDR) to control for testing multiple hypotheses. 
+```{r}
+p.adjust(c(0.001062, 0.02742), method = "fdr")
+```
+After performing FDR, the p-value for E. fuscus increased from 0.001062 to 0.002124. However, for the M. lucifugus there was no change in p-value and is 0.027420. This is different from what the authors of the paper got for the M. lucifugus after performing FDR. Specifically, there was an increase after the FDR statistics, leading to an non-signficant p-value.
+
+We then use the "ggplot" command to create a box plot of Mean torpor bout duration(days) by Treatment of Eptesicus fuscus. 
+```{r}
+ggplot(big.filter) +
+  aes(Treatment, `Mean torpor bout duration (days)`, group=Treatment, fill=Treatment)+ 
+  geom_boxplot() +
+  theme_cowplot() +
+  theme(plot.title = element_text(size=14, face="bold.italic"))
+```
+
+We then do the same for the Myotis lucifugus.
+```{r}
+ggplot(small.filter) +
+  aes(Treatment, `Mean torpor bout duration (days)`, group=Treatment, fill=Treatment) + 
+  geom_boxplot() +
+  theme_cowplot() +
+  theme(plot.title = element_text(size=14, face="bold.italic"))
+```
+
+
+Figure 3A
+
+For Figure 3A, we created a subset of the relevant columns using the "dplyr::select" command. We use the "head" command to look at the first six rows of the subset. This ensures that the data is properly organized.
+```{r}
+bats.subset3 <- dplyr::select(bats, Species, `Total # of Pd lesions`, `Total # of inflammatory foci`)
+head(bats.subset3)
+```
+There are no NA so we don't need to filter out NAs.
+
+Next, we made a subset using the "mutate" function for the Eptesicus fuscus species. We also used the "summary" command to visualize the subset. 
+```{r}
+big.bats2 <- mutate(bats.subset3, E.fuscus = Species == "Eptesicus fuscus")
+summary(big.bats2$E.fuscus)
+```
+
+Using the "dplyr::filter" command, we set E. fuscus to true. We also used the "summary" command to visualize the subset. 
+```{r}
+big.filter2 <- dplyr::filter(big.bats2, E.fuscus == "TRUE")
+summary(big.filter2$E.fuscus)
+```
+
+Following the same protocol as the big bats, we create a subset and filtered for small bats. 
+```{r}
+small.bats2 <- mutate(bats.subset3, M.lucifugus = Species == "Myotis lucifugus")
+summary(small.bats2$M.lucifugus)
+```
+
+```{r}
+small.filter2 <- dplyr::filter(small.bats2, M.lucifugus == "TRUE")
+summary(small.filter2$M.lucifugus)
+```
+
+Next, we create a linear regression plot of the "big.filter2" data using the "ggplot" command. We specifically created this to look at the regression between the total nunmber of inflammatory foci and the total number of Pd lesions for the big bats. 
+
+```{r}
+p1 <- big.filter2 %>% 
+  ggplot(aes(x = `Total # of inflammatory foci`, y = `Total # of Pd lesions`)) +
+  geom_point(shape=1) +
+  geom_smooth(method=lm, se=TRUE, fullrange=TRUE) +
+  expand_limits(x=c(0,200), y=c(0, 30)) +
+  ggtitle('Eptesicus fuscus') +
+  theme_cowplot()
+
+lmResult1 <- lm(`Total # of Pd lesions` ~ `Total # of inflammatory foci` + 0, data=big.filter2)
+lmResult1
+summary(lmResult1)
+
+rmse1 <- sqrt(mean(lmResult1$residuals**2))
+rmse1
+```
+The p-value is 4.82e-05 sugggesting that there is a relationship between `Total # of Pd lesions` and `Total # of inflammatory foci` in Eptesicus fuscus.
+
+We then create a linear regression for Myotis lucifugus using the "small.filter2" dataset. 
+```{r}
+p2 <- small.filter2 %>% 
+  ggplot(aes(x = `Total # of inflammatory foci`, y = `Total # of Pd lesions`)) +
+  geom_point(shape=17) +
+  geom_smooth(method=lm, se=TRUE, fullrange=TRUE)+
+  expand_limits(x=c(0,200), y=c(0, 30)) +
+  ggtitle('Myotis lucifugus') +
+  theme_cowplot()
+
+lmResult2 <- lm(`Total # of Pd lesions` ~ `Total # of inflammatory foci` + 0, data=small.filter2)
+lmResult2
+summary(lmResult2)
+
+rmse2 <- sqrt(mean(lmResult2$residuals**2))
+rmse2
+```
+The p-value is 0.000578 sugggesting that there is a significant relationship between `Total # of Pd lesions` and `Total # of inflammatory foci` in Myotis lucifugus.
+
+Finally, we create a linear regression plot for both species for total number of Pd lesions.   
+```{r}
+plot_grid(p1,p2, ncol=2)
+```
+
+Figure 3B
+
+For Figure 3b, we used the same methodology as Figure 3a. The only difference is that this figure has the dependent variable as the number of unidentified fungal foci. 
+```{r}
+bats.subset4 <- dplyr::select(bats, Species, `Total # of unidentified fungal lesions`, `Total # of inflammatory foci`)
+head(bats.subset4)
+```
+
+```{r}
+small.bats3 <- mutate(bats.subset4, M.lucifugus = Species == "Myotis lucifugus")
+summary(small.bats3$M.lucifugus)
+```
+
+```{r}
+small.filter3 <- dplyr::filter(small.bats3, M.lucifugus == "TRUE")
+summary(small.filter3$M.lucifugus)
+```
+
+```{r}
+big.bats3 <- mutate(bats.subset4, E.fuscus = Species == "Eptesicus fuscus")
+summary(big.bats3$E.fuscus)
+```
+
+```{r}
+big.filter3 <- dplyr::filter(big.bats3, E.fuscus == "TRUE")
+summary(big.filter3$E.fuscus)
+```
+
+```{r}
+p3 <- big.filter3 %>% 
+  ggplot(aes(x = `Total # of inflammatory foci`, y = `Total # of unidentified fungal lesions`)) +
+  geom_point(shape=1) +
+  geom_smooth(method=lm, se=TRUE, fullrange=TRUE) +
+  expand_limits(x=c(0,200), y=c(0, 600)) +
+  ggtitle('Eptesicus fuscus') +
+  theme_cowplot()
+
+lmResult3 <- lm(`Total # of unidentified fungal lesions` ~ `Total # of inflammatory foci` + 0, data=big.filter3)
+lmResult3
+summary(lmResult3)
+
+rmse3 <- sqrt(mean(lmResult3$residuals**2))
+rmse3
+```
+The p-value is 2e-16 sugggesting that there is a significant relationship between `Total # of unidentified fungal lesions` and `Total # of inflammatory foci` in Eptesicus fuscus.
+
+```{r}
+p4 <- small.filter3 %>% 
+  ggplot(aes(x = `Total # of inflammatory foci`, y = `Total # of unidentified fungal lesions`)) +
+  geom_point(shape=17) +
+  geom_smooth(method=lm, se=TRUE, fullrange=TRUE)+ 
+  expand_limits(x=c(0,200), y=c(0, 600)) +
+  ggtitle('Myotis lucifugus') +
+  theme_cowplot()
+
+lmResult4 <- lm(`Total # of unidentified fungal lesions` ~ `Total # of inflammatory foci` + 0, data=small.filter3)
+lmResult4
+summary(lmResult4)
+
+rmse4<- sqrt(mean(lmResult4$residuals**2))
+rmse4
+```
+The p-value is 4.29e-08 sugggesting that there is a significant relationship between `Total # of unidentified fungal lesions` and `Total # of inflammatory foci` in Myotis lucifugus.
+
+```{r}
+plot_grid(p3,p4, ncol=2)
+```
+
